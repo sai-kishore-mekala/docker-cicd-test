@@ -1,1 +1,38 @@
+name: Build, test, and publish
 
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: ${{ vars.DOCKERHUB_USERNAME }}/deploy-demo
+
+    steps:
+      - name: Download repository files
+        uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build -t "$IMAGE_NAME:$GITHUB_SHA" .
+
+      - name: Check web response
+        run: |
+          docker run -d --name ci-web -p 127.0.0.1:8080:80 "$IMAGE_NAME:$GITHUB_SHA"
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:8080/
+          docker rm -f ci-web
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Publish image
+        run: docker push "$IMAGE_NAME:$GITHUB_SHA"
