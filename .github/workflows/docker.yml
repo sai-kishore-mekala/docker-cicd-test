@@ -1,5 +1,4 @@
 name: Build, test, and publish
-
 on:
   push:
     branches: [main]
